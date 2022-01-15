@@ -7,16 +7,14 @@ using VRC.Udon;
 public class SphereUSharp : UdonSharpBehaviour
 {
     public Transform respawnPosition;
+    Rigidbody rigid;
     public AudioSource carImpactSound;
 
-    private void Update()
+    private void Start()
     {
-        
-        if(transform.position.y < -10)
-        {
-            Destroy(gameObject);
-        }
+        rigid = GetComponent<Rigidbody>();
     }
+
     private void OnCollisionEnter(Collision collision)
     {
         if (!carImpactSound.isPlaying)
@@ -27,6 +25,7 @@ public class SphereUSharp : UdonSharpBehaviour
     }
     public override void OnPlayerTriggerEnter(VRCPlayerApi player)
     {
+        
         player.TeleportTo(respawnPosition.position, Quaternion.identity);
     }
 
