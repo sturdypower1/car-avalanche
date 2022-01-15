@@ -13,14 +13,9 @@ public class FallingObjectPool : UdonSharpBehaviour
 
     public override void OnDeserialization()
     {
-        Debug.Log("setting active");
         for(int i = 0; i < cars.Length; i++)
         {
             cars[i].SetActive(areActive[i]);
-            if (cars[i].activeSelf == areActive[i])
-            {
-                
-            }
         }
     }
 
