@@ -11,7 +11,12 @@ public class PVPManager : UdonSharpBehaviour
     private int runnerIndex;
     [UdonSynced] private int runnerCount = 0;
     [UdonSynced] private int dropperCount = 0;
-    [UdonSynced] private bool[] runnersAlive = new bool[1];
+
+    [UdonSynced] public int[] runnerIds = new int[8];
+    private VRCPlayerApi[] runnerPlayers;
+    [UdonSynced] public int[] dropperIds = new int[2];
+    private VRCPlayerApi[] dropperPlayers;
+    //[UdonSynced] private bool[] runnersAlive = new bool[1];
 
     public Transform runnerTeleport;
     public Transform dropperTeleport;
@@ -24,33 +29,114 @@ public class PVPManager : UdonSharpBehaviour
     private bool isSetup = false;
     [UdonSynced] private bool isStarted = false;
 
-    public void DropperVictor()
-    {
-        ResetMap();
-    }
-    public void RunnerVictory()
-    {
 
+    
+
+    // got help here from pupppet 
+
+    public override void OnDeserialization() => _UpdateTeamPlayers();
+
+    private void _UpdateTeamPlayers()
+    {
+        runnerPlayers = new VRCPlayerApi[runnerIds.Length];
+        for (int i = 0; i < runnerIds.Length; ++i)
+        {
+            if (runnerIds[i] == 0)
+            {
+                runnerPlayers[i] = null;
+            }
+            else
+            {
+                runnerPlayers[i] = VRCPlayerApi.GetPlayerById(runnerIds[i]);
+            }
+        }
+    }
+
+    public override void OnPlayerLeft(VRCPlayerApi player)
+    {
+        if (Networking.IsOwner(gameObject))
+        {
+            Debug.Log("this is the owner");
+        }
+        for (int i = 0; i < runnerPlayers.Length; ++i)
+        {
+            if (runnerPlayers[i] == player)
+            {
+                Debug.Log("runner ID " + runnerIds[i] + " has left the world.");
+                runnerIds[i] = 0;
+            }
+            
+        }
+    }
+
+    /*public override void OnPlayerLeft(VRCPlayerApi player)
+    {
+        int runnerIndex = FindRunner(player);
+        int dropperIndex = FindDropper(player);
+        if (player.GetPlayerTag("runner") == "")
+        {
+            Debug.Log("was runner");
+        }
+        else if (player.GetPlayerTag("dropper") == "")
+        {
+            Debug.Log("was dropper");
+        }
+    }*/
+    public int FindRunner(VRCPlayerApi player)
+    {
+        /*for(int i = 0; i < runnerIds.Length; i++)
+        {
+            if(runnerIds[i] == playerid)
+            {
+                return i;
+            }
+        }*/
+        return -1;
+    }
+    public int FindDropper(VRCPlayerApi player)
+    {
+        for (int i = 0; i < dropperIds.Length; i++)
+        {
+            if (VRCPlayerApi.GetPlayerById(dropperIds[i]) == player)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+    public void RunnerVictor()
+    {
+        var player = Networking.LocalPlayer;
+        isStarted = false;
+        runnerCount = 0;
+        dropperCount = 0;
+        foreach(PlayerLabel label in runnerLabels)
+        {
+            label.SetLabelText("None");
+        }
+        foreach (PlayerLabel label in dropperLabels)
+        {
+            label.SetLabelText("None");
+        }
+
+        Networking.SetOwner(player, gameObject);
+        ResetMap();
     }
 
     public void ResetMap()
     {
+        isSetup = false;
+        playerSelect.SetActive(true);
+        
         var player = Networking.LocalPlayer;
         if(isRunner || isDropper)
         {
             player.TeleportTo(spawnTeleport.position, Quaternion.identity);
         }
-    }
-
-    public override void OnPlayerRespawn(VRCPlayerApi player)
-    {
-        if (isRunner)
-        {
-            runnersAlive[runnerIndex] = false;
-        }
         isRunner = false;
         isDropper = false;
     }
+
 
     private void Update()
     {
@@ -69,24 +155,16 @@ public class PVPManager : UdonSharpBehaviour
             playerSelect.SetActive(false);
             isSetup = true;
         }
-
-        // should only update if it is the owner
-        if (Networking.IsOwner(Networking.LocalPlayer, gameObject))
+        else if(!isSetup && isStarted)
         {
-            bool isAllDead = true;
-            foreach(bool isAlive in runnersAlive)
-            {
-                if (isAlive)
-                {
-                    isAllDead = false;
-                    break;
-                }
-            }
-            if (isAllDead)
-            {
-                DropperVictor();
-            }
+            playerSelect.SetActive(false);
+            isSetup = true;
         }
+        else if(isSetup && !isStarted)
+        {
+            ResetMap();
+        }
+
     }
     public void StartGame()
     {
@@ -98,12 +176,6 @@ public class PVPManager : UdonSharpBehaviour
             isSetup = true;
 
             playerSelect.gameObject.SetActive(false);
-
-            runnersAlive = new bool[runnerCount];
-            for(int i = 0; i < runnerCount; i++)
-            {
-                runnersAlive[i] = true;
-            }
 
             if (isRunner)
             {
@@ -122,6 +194,8 @@ public class PVPManager : UdonSharpBehaviour
         {
             Networking.SetOwner(player, gameObject);
             runnerLabels[runnerCount].SetLabelText(player.displayName);
+            runnerIds[runnerCount] = player.playerId;
+            player.SetPlayerTag("runner");
             isRunner = true;
             runnerCount++;
         }
@@ -133,6 +207,8 @@ public class PVPManager : UdonSharpBehaviour
         {
             Networking.SetOwner(player, gameObject);
             dropperLabels[dropperCount].SetLabelText(player.displayName);
+            player.SetPlayerTag("dropper");
+            dropperIds[dropperCount] = player.playerId;
             isDropper = true;
             dropperCount++;
         }

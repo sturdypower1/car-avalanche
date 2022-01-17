@@ -7,9 +7,11 @@ using VRC.Udon;
 public class DropperKiller : UdonSharpBehaviour
 {
     public GameObject DropperPlatform;
+    public PVPManager manager;
 
     public override void Interact()
     {
-        DropperPlatform.SetActive(false);
+        manager.RunnerVictor();
+        //DropperPlatform.SetActive(false);
     }
 }
